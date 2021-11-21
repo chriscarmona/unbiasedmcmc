@@ -1,12 +1,19 @@
+#!/usr/bin/env Rscript
+
+# Parameters passed by the user via Rscript
+args <- commandArgs(trailingOnly = TRUE)
+
+out_dir <- args[1]
+
 # load packages
-library(unbiasedmcmc)
-library(latex2exp)
-library(dplyr)
+req_packages <- c("unbiasedmcmc", "latex2exp", "dplyr", "doParallel", "doRNG")
+inst_packages <- suppressMessages(sapply(req_packages, require, character.only = TRUE))
+inst_packages_ok <- sapply(req_packages[!inst_packages], install.packages, character.only = TRUE)
+
 setmytheme()
-rm(list = ls())
-set.seed(21)
-library(doParallel)
-library(doRNG)
+setwd(out_dir)
+rm(list = setdiff(ls(), "out_dir"))
+set.seed(123)
 registerDoParallel(cores = detectCores())
 
 #
@@ -33,22 +40,22 @@ summary(meetingtime)
 hist(meetingtime)
 #
 
-mean_estimators <-  foreach(irep = 1:nsamples) %dorng% {
+mean_estimators <- foreach(irep = 1:nsamples) %dorng% {
   H_bar(c_chains_2[[irep]], k = k, m = m)
 }
 
-square_estimators <-  foreach(irep = 1:nsamples) %dorng% {
+square_estimators <- foreach(irep = 1:nsamples) %dorng% {
   H_bar(c_chains_2[[irep]], h = function(x) x^2, k = k, m = m)
 }
 
 est_mean <- rep(0, dimension)
 est_var <- rep(0, dimension)
-for (component in 1:dimension){
+for (component in 1:dimension) {
   estimators <- sapply(mean_estimators, function(x) x[component])
   est_mean[component] <- mean(estimators)
-  cat("estimated mean: ", est_mean[component], "+/- ", 2*sd(estimators)/sqrt(nsamples), "\n")
+  cat("estimated mean: ", est_mean[component], "+/- ", 2 * sd(estimators) / sqrt(nsamples), "\n")
   s_estimators <- sapply(square_estimators, function(x) x[component])
-  cat("estimated second moment: ", mean(s_estimators), "+/- ", 2*sd(s_estimators)/sqrt(nsamples), "\n")
+  cat("estimated second moment: ", mean(s_estimators), "+/- ", 2 * sd(s_estimators) / sqrt(nsamples), "\n")
   est_var[component] <- mean(s_estimators) - est_mean[component]^2
   cat("estimated variance: ", est_var[component], "\n")
 }
@@ -69,15 +76,15 @@ histogram1 <- histogram_c_chains(c_chains_2, 1, k, m, nclass = 35)
 histogram2 <- histogram_c_chains(c_chains_2, 2, k, m, nclass = 30)
 load(file = "plummer.mcmc.RData")
 
-hist_mcmc <- hist(theta2s[,1], breaks = histogram1$breaks, plot = F)
+hist_mcmc <- hist(theta2s[, 1], breaks = histogram1$breaks, plot = F)
 # hist_mcmc <- hist(theta2s[,1], plot = F)
 g1 <- plot_histogram(histogram1, with_bar = T) + xlab(TeX("$\\theta_{2,1}$")) + ylab("density")
-g1 <- g1 + geom_line(data=data.frame(x = hist_mcmc$mids, y = hist_mcmc$density), aes(x = x, y = y, xmin = NULL, xmax = NULL, ymin = NULL, ymax = NULL), colour = "red")
+g1 <- g1 + geom_line(data = data.frame(x = hist_mcmc$mids, y = hist_mcmc$density), aes(x = x, y = y, xmin = NULL, xmax = NULL, ymin = NULL, ymax = NULL), colour = "red")
 g1 <- g1 + scale_x_continuous(breaks = c(-2.5, -2, -1.5))
 g1
 ggsave("plummer.histogram1.pdf", plot = g1, width = 5, height = 5)
 
-hist_mcmc <- hist(theta2s[,2], breaks = histogram2$breaks, plot = F)
+hist_mcmc <- hist(theta2s[, 2], breaks = histogram2$breaks, plot = F)
 g2 <- plot_histogram(histogram2, with_bar = T) + xlab(TeX("$\\theta_{2,2}$")) + ylab("density")
 g2 <- g2 + geom_line(aes(x = hist_mcmc$mids, y = hist_mcmc$density), colour = "red")
 g2 <- g2 + scale_x_continuous(breaks = c(10, 15, 20, 25))
